@@ -8,7 +8,7 @@ Scientific Calculator
 2) x!        (factorial)
 3) ln(x)     (natural log, base e)
 4) x^b       (power)
-5) Exit
+5) Exiting
 """
 
 def sqrt_x(x: float) -> float:
