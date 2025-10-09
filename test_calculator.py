@@ -20,7 +20,7 @@ def test_sqrt_x_errors(x):
 @pytest.mark.parametrize("n, expected", [
     (0, 1),
     (1, 1),
-    (3,6),
+    (4,24),
     (5, 120),
     (10, math.factorial(10)),
 ])
