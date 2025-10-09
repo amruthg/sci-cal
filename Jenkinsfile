@@ -2,15 +2,12 @@ pipeline {
   agent any
 
   environment {
-    // Set this to your Docker Hub repo, e.g. "yourname/sci-calc"
-    DOCKER_IMAGE = credentials('docker-image-name') // or set a simple string like "yourname/sci-calc"
-    // Credentials in Jenkins (Username/Password) ID: 'dockerhub-creds'
-    // If you prefer not to use credentials() for DOCKER_IMAGE, replace with a literal.
+    DOCKERHUB_REPO = 'iamruthless/sci-cal'
   }
 
   stages {
     stage('Checkout') {
-      steps { checkout scm }
+      steps { checkout scm }   // uses your GitHub repo configured for the job
     }
 
     stage('Set up Python') {
@@ -20,8 +17,8 @@ pipeline {
           pip3 --version || true
           python3 -m venv .venv
           . .venv/bin/activate
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         '''
       }
     }
@@ -30,25 +27,22 @@ pipeline {
       steps {
         sh '''
           . .venv/bin/activate
-          pytest -q
+          pytest -q --junitxml=pytest.xml
         '''
       }
       post {
         always {
-          junit allowEmptyResults: true, testResults: '**/pytest*.xml'
+          junit allowEmptyResults: true, testResults: 'pytest.xml'
         }
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        script {
-          // If DOCKER_IMAGE is a string like "yourname/sci-calc", this will work.
-          sh '''
-            IMAGE_NAME="${DOCKER_IMAGE:-yourname/sci-calc}"
-            docker build -t "$IMAGE_NAME:latest" .
-          '''
-        }
+        sh '''
+          docker version
+          docker build -t "${DOCKERHUB_REPO}:latest" -t "${DOCKERHUB_REPO}:${BUILD_NUMBER}" .
+        '''
       }
     }
 
@@ -56,9 +50,9 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
           sh '''
-            IMAGE_NAME="${DOCKER_IMAGE:-yourname/sci-calc}"
             echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
-            docker push "$IMAGE_NAME:latest"
+            docker push "${DOCKERHUB_REPO}:latest"
+            docker push "${DOCKERHUB_REPO}:${BUILD_NUMBER}"
           '''
         }
       }
@@ -67,10 +61,9 @@ pipeline {
     stage('Deploy (Ansible)') {
       steps {
         sh '''
-          # Assumes ansible is installed on the Jenkins agent and inventory present (or using localhost).
           ansible --version || true
           ansible-playbook -i "localhost," -c local deploy.yml \
-            --extra-vars "docker_image=${DOCKER_IMAGE:-yourname/sci-calc}:latest"
+            --extra-vars "docker_image=${DOCKERHUB_REPO}:latest"
         '''
       }
     }
@@ -80,4 +73,3 @@ pipeline {
     always { cleanWs() }
   }
 }
-
