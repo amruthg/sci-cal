@@ -3,9 +3,11 @@
   hosts: all
   connection: local
   gather_facts: false
+
   vars:
-    docker_image: "yourname/sci-calc:latest"
+    docker_image: "iamruthless/sci-cal:latest"
     container_name: "sci-calculator"
+
   tasks:
     - name: Ensure Docker is available
       command: docker --version
@@ -22,14 +24,17 @@
       command: docker rm -f {{ container_name }}
       ignore_errors: true
 
-    - name: Run calculator container (interactive off; use docker logs -f to view)
+    # Keep the container running so you can exec into it later
+    - name: Run container (keepalive with tail -f /dev/null)
       command: >
         docker run -d
         --name {{ container_name }}
+        --entrypoint tail
         {{ docker_image }}
+        -f /dev/null
       register: run_result
 
     - name: Show running container
       command: docker ps --filter "name={{ container_name }}" --format "{{'{{.ID}} {{.Image}} {{.Status}}'}}"
       changed_when: false
-
+      
