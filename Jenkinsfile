@@ -31,19 +31,20 @@ pipeline {
     stage('Unit Tests') {
       steps {
         sh '''
-          . .venv/bin/activate || true
-          if ls -1 tests 2>/dev/null | grep -q .; then
-            pytest -q --junitxml=pytest.xml
-          else
-            echo "No tests/ directory; skipping pytest."
-            touch pytest.xml
-          fi
+          . .venv/bin/activate
+          # Prove pytest is installed and show what it will collect
+          python -c "import pytest, sys; print('pytest', pytest.__version__)"
+          # Run tests explicitly from the root file
+          pytest -q test_calculator.py --junitxml=pytest.xml
         '''
       }
       post {
-        always { junit allowEmptyResults: true, testResults: 'pytest.xml' }
+        always {
+          junit testResults: 'pytest.xml', allowEmptyResults: true
+        }
       }
     }
+
 
     stage('Build & Push Docker Image') {
       steps {
